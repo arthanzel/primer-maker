@@ -23,6 +23,11 @@
          * Go to LOOP
          */
         
+        if (!getAwesome()) {
+            $("#output").html("Error: Primer Maker must be freaking awesooooooome to make primers.");
+            return;
+        }
+        
         var dna = getDNA();
         var reverseDNA = getDNA().split("").reverse().join("");
         var fPrimer = calculatePrimer(dna);
@@ -33,6 +38,7 @@
     function calculatePrimer(dna) {
         var lastScore = -9999; // Awful score to make sure it gets overwritten
         var lastSequence = "";
+        var lastTemp = 0;
 
         for (var i = 0; i < dna.length; i++) {
             // Get the sequence
@@ -48,12 +54,13 @@
             if (score > lastScore) {
                 lastScore = score;
                 lastSequence = sequence;
+                lastTemp = Tm;
             }
 
             console.log(sequence + "  " + score + "     " + Tm);
         }
 
-        return lastSequence;
+        return {sequence: lastSequence, temp: lastTemp};
     }
 
     function calculateTmNN(sequence, cation, oligo) {
@@ -137,6 +144,10 @@
         }
     }
 
+    function getAwesome() {
+        return $("#awesome").is(":checked");
+    }
+
     function getCation() {
         return parseFloat($("#cation").val()) / 1000;
     }
@@ -159,10 +170,11 @@
 
     function out(forward, reverse) {
         var html = "<b>Forward primer</b>: 5'-";
-        html += forward;
-        html += "-3'<br /><b>Reverse primer</b>: 5'-";
-        html += reverse;
-        html += "-3'";
+        html += forward.sequence;
+        html += "-3' Tm: " + forward.temp;
+        html += "<br /><b>Reverse primer</b>: 5'-";
+        html += reverse.sequence;
+        html += "-3' Tm: " + reverse.temp;
         $("#output").html(html);
     }
 
@@ -192,9 +204,21 @@
         G/C bias: <input id="gc" type="text" value="3" /> <br />
         Cation concentration (mM): <input id="cation" type="text" value="50" /> <br />
         Oligo concentration (nM): <input id="oligo" type="text" value="25" /> <br />
-        Use nearest-neighbour algorithm (recommended): <input id="nn" type="checkbox" checked />
+        Use nearest-neighbour algorithm (recommended): <input id="nn" type="checkbox" checked /> <br />
+        This is freaking awesooooooome. <input id="awesome" type="checkbox" checked />
     </p>
     <p><input type="submit" id="submit" value="Amplify that shit" /></p>
     <p id="output" style="font-family: monospace;"></p>
+
+    <div style="text-align: center; color: #bbb; margin: 60px 60px 0px 60px;">
+        <h2>How-to</h2>
+        <p>Punch in your 5'-3' DNA segment that you want amplified and hit the button with the dirty word.</p>
+        <p><b>Target temp:</b> Optimal melting temperature for the primer. Generally, Primer Maker will come up with primers 1 to 2 degrees from the target temp.</p>
+        <p><b>G/C bias:</b> Determines how much you like primers that end in G or C (on the 3' end). Primer Maker will prefer primers ending in G/C over other primers unless the difference between the melting temperatures is greater than the bias. For instance, consider a bias of 3 and target temp of 50 C. A primer ending in G/C with a Tm of 53 will be preferred over a primer ending in A/T with a Tm of 51. Increasing this value makes Primer Maker like G/C primes more. Set this to zero to obtain the best primer purely based on Tm.</p>
+        <p><b>Cation concentration:</b> Concentration of Na+ and Mg++ in the buffer. The default values work well enough for the NEB buffers.</p>
+        <p><b>Oligo concentration:</b> Concentration of primer/DNA duplex. This value is used in the nearest-neighbour algorithm to estimate Tm in solutioin with only primers. Real-world experience may vary. All sales are final.</p>
+        <p><b>Use nearest-neighbour algorithm:</b> Uses an awesome algorithm to calculate Tm. Don't turn this off unless the rest of your stocks use simpler, base-counting algorithms. Sauce: <i>Sugimoto, N., Nakano, S., Yoneyama, M., &amp; Honda, K. (1996). Improved thermodynamic parameters and helix initiation factor to predict stability of DNA duplexes. Nucleic Acids Research, 24(22), 4501-4505. Retrieved from http://www.pubmedcentral.nih.gov/articlerender.fcgi?artid=146261&amp;tool=pmcentrez&amp;rendertype=abstract</i></p>
+        <p>Both the nearest-neighbour and simple algorithms are based on Northwestern's oligo calculator available <a href="http://www.basic.northwestern.edu/biotools/OligoCalc.html">here</a>.</p>
+    </div>
 </body>
 </html>
