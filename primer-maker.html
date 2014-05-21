@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Primer Maker</title>
+    <script src="jquery-1.10.2.min.js"></script>
+
+    <script>
+    /* ====== Shortcut functions ====== */
+    function calculate() {
+        /**
+         * ALGORITHM:
+         * Find starting point, length = 1
+         * LOOP: Construct a DNA sequence from the length
+         * Get its TM
+         * Assign a "score" based on difference between Tm and target, and GC bias.
+         * Is the score higher than the last score?
+         *     Yes: Save both the score and sequence.
+         *     No: Do nothing
+         * Is there another base?
+         *     Yes: Increment length
+         *     No: Return the saved sequence
+         * Go to LOOP
+         */
+        
+        var dna = getDNA();
+        var reverseDNA = getDNA().split("").reverse().join("");
+        var fPrimer = calculatePrimer(dna);
+        var rPrimer = calculatePrimer(reverseDNA);
+        out(fPrimer, rPrimer);
+    }
+
+    function calculatePrimer(dna) {
+        var lastScore = -9999; // Awful score to make sure it gets overwritten
+        var lastSequence = "";
+
+        for (var i = 0; i < dna.length; i++) {
+            // Get the sequence
+            var sequence = dna.substring(0, i + 1);
+
+            // Calculate Tm and score
+            var Tm = useNN() ? calculateTmNN(sequence, getCation(), getOligo()) : calculateTmSimple(sequence, getCation());
+            var score = 0 - Math.abs(Tm - getTargetTm());
+            if (sequence.charAt(sequence.length - 1).toLowerCase() == "g" || sequence.charAt(sequence.length - 1).toLowerCase() == "c")
+                score += getGCBias();
+
+            // Update score
+            if (score > lastScore) {
+                lastScore = score;
+                lastSequence = sequence;
+            }
+
+            console.log(sequence + "  " + score + "     " + Tm);
+        }
+
+        return lastSequence;
+    }
+
+    function calculateTmNN(sequence, cation, oligo) {
+        sequence = sequence.toUpperCase();
+
+        var entropyMap = {
+            "AA": 21.9,
+            "AC": 25.5,
+            "AG": 16.4,
+            "AT": 15.2,
+            "CA": 21.0,
+            "CC": 28.4,
+            "CG": 29.0,
+            "CT": 16.4,
+            "GA": 23.5,
+            "GC": 26.4,
+            "GG": 28.4,
+            "GT": 25.5,
+            "TA": 18.4,
+            "TC": 23.5,
+            "TG": 21.0,
+            "TT": 21.9
+        };
+        var enthalpyMap = {
+            "AA": 8.0e3,
+            "AC": 9.4e3,
+            "AG": 6.6e3,
+            "AT": 5.6e3,
+            "CA": 8.2e3,
+            "CC": 10.9e3,
+            "CG": 11.8e3,
+            "CT": 6.6e3,
+            "GA": 8.8e3,
+            "GC": 10.5e3,
+            "GG": 10.9e3,
+            "GT": 9.4e3,
+            "TA": 6.6e3,
+            "TC": 8.8e3,
+            "TG": 8.2e3,
+            "TT": 8.0e3
+        }
+
+        // Get enthalpy
+        var enthalpy = 0;
+
+        // Iterate through every pair of bases in the sequence and add up enthalpies.
+        for (var i = 0; i < sequence.length - 1; i++) {
+            var pair = sequence[i] + sequence[i+1];
+            enthalpy += enthalpyMap[pair];
+        }
+
+        // Get entropy
+        var entropy = 0;
+
+        // Iterate through every pair of bases in the sequence and add up enthalpies.
+        for (var i = 0; i < sequence.length - 1; i++) {
+            var pair = sequence[i] + sequence[i+1];
+            entropy += entropyMap[pair];
+        }
+
+        var numerator = enthalpy - 3400;
+        var denominator = entropy + (1.987 * Math.log(1.0/oligo));
+        var saltCorrection = (7.21 * Math.log(cation));
+        return (numerator/denominator) + saltCorrection - 272.9;
+    }
+
+    function calculateTmSimple(sequence, cCation) {
+        sequence = sequence.toLowerCase();
+        var count = {
+            A: (sequence.match(/a/g) || []).length,
+            C: (sequence.match(/c/g) || []).length,
+            G: (sequence.match(/g/g) || []).length,
+            T: (sequence.match(/t/g) || []).length
+        };
+
+        if (sequence.length < 14) {
+            return 2 * (count.A + count.T) + 4 * (count.C + count.G) + 16.6 * Math.log10(cCation) - 16.6 * Math.log10(0.050);
+        }
+        else {
+            return 100.5 + (41 * (count.C + count.G) / sequence.length) - (820 / sequence.length) + 16.6 * Math.log10(cCation);
+        }
+    }
+
+    function getCation() {
+        return parseFloat($("#cation").val()) / 1000;
+    }
+
+    function getDNA() {
+        return $("#dna").val();
+    }
+
+    function getGCBias() {
+        return parseFloat($("#gc").val());
+    }
+
+    function getOligo() {
+        return parseFloat($("#oligo").val()) / 1e9;
+    }
+
+    function getTargetTm() {
+        return parseFloat($("#temp").val());
+    }
+
+    function out(forward, reverse) {
+        var html = "<b>Forward primer</b>: 5'-";
+        html += forward;
+        html += "-3'<br /><b>Reverse primer</b>: 5'-";
+        html += reverse;
+        html += "-3'";
+        $("#output").html(html);
+    }
+
+    function useNN() {
+        return $("#nn").is(":checked");
+    }
+
+    $(function() {
+        $("#submit").click(function(e){
+            e.preventDefault();
+            calculate();
+        });
+
+        Math.log10 = function(x) {
+            return Math.log(x) / Math.LN10;
+        }
+    });
+   
+    </script>
+</head>
+<body>
+    <h1>Let's make a primer!</h1>
+    <p>DNA to be amplified:</p>
+    <textarea id="dna" cols="120" rows="10">acgatcgatcgtacgtacgtacgtacgaacgtacgtacg</textarea>
+    <p>
+        Target temp: <input id="temp" type="text" value="50" /> <br />
+        G/C bias: <input id="gc" type="text" value="3" /> <br />
+        Cation concentration (mM): <input id="cation" type="text" value="50" /> <br />
+        Oligo concentration (nM): <input id="oligo" type="text" value="25" /> <br />
+        Use nearest-neighbour algorithm (recommended): <input id="nn" type="checkbox" checked />
+    </p>
+    <p><input type="submit" id="submit" value="Amplify that shit" /></p>
+    <p id="output" style="font-family: monospace;"></p>
+</body>
+</html>
