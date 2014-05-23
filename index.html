@@ -32,6 +32,7 @@
         var reverseDNA = getDNA().split("").reverse().join("");
         var fPrimer = calculatePrimer(dna);
         var rPrimer = calculatePrimer(reverseDNA);
+        rPrimer.sequence = getComplement(rPrimer.sequence);
         out(fPrimer, rPrimer);
     }
 
@@ -150,6 +151,19 @@
 
     function getCation() {
         return parseFloat($("#cation").val()) / 1000;
+    }
+
+    function getComplement(dna) {
+        dna = dna.replace(/a/g, "x");
+        dna = dna.replace(/t/g, "a");
+        dna = dna.replace(/x/g, "t");
+
+
+        dna = dna.replace(/c/g, "x");
+        dna = dna.replace(/g/g, "c");
+        dna = dna.replace(/x/g, "g");
+
+        return dna;
     }
 
     function getDNA() {
