@@ -6,22 +6,7 @@
     <script src="jquery-1.10.2.min.js"></script>
 
     <script>
-    /* ====== Shortcut functions ====== */
     function calculate() {
-        /**
-         * ALGORITHM:
-         * Find starting point, length = 1
-         * LOOP: Construct a DNA sequence from the length
-         * Get its TM
-         * Assign a "score" based on difference between Tm and target, and GC bias.
-         * Is the score higher than the last score?
-         *     Yes: Save both the score and sequence.
-         *     No: Do nothing
-         * Is there another base?
-         *     Yes: Increment length
-         *     No: Return the saved sequence
-         * Go to LOOP
-         */
         
         if (!getAwesome()) {
             $("#output").html("Error: Primer Maker must be freaking awesooooooome to make primers.");
@@ -227,7 +212,7 @@
         <h2>How-to</h2>
         <p>Punch in your 5'-3' DNA segment that you want amplified and hit the button with the dirty word.</p>
         <p><b>Target temp:</b> Optimal melting temperature for the primer. Generally, Primer Maker will come up with primers 1 to 2 degrees from the target temp.</p>
-        <p><b>G/C bias:</b> Determines how much you like primers that end in G or C (on the 3' end). Primer Maker will prefer primers ending in G/C over other primers unless the difference between the melting temperatures is greater than the bias. For instance, consider a bias of 3 and target temp of 50 C. A primer ending in G/C with a Tm of 53 will be preferred over a primer ending in A/T with a Tm of 51. Increasing this value makes Primer Maker like G/C primes more. Set this to zero to obtain the best primer purely based on Tm.</p>
+        <p><b>G/C bias:</b> Determines how much you like primers that end in G or C (on the 3' end). Normally, Primer Maker will prefer primers ending in G/C. If the Tm difference between the best G/C primer and the best non-G/C primer is less than the G/C bias, the G/C primer will be chosen. Increasing this value makes Primer Maker like G/C primes more. Set this to zero to obtain the best primer purely based on Tm.</p>
         <p><b>Cation concentration:</b> Concentration of Na+ and Mg++ in the buffer. The default values work well enough for the NEB buffers.</p>
         <p><b>Oligo concentration:</b> Concentration of primer/DNA duplex. This value is used in the nearest-neighbour algorithm to estimate Tm in solution with only primers. Real-world experience may vary. All sales are final.</p>
         <p><b>Use nearest-neighbour algorithm:</b> Uses an awesome algorithm to calculate Tm. Don't turn this off unless the rest of your stocks use simpler, base-counting algorithms. Sauce: <i>Sugimoto, N., Nakano, S., Yoneyama, M., &amp; Honda, K. (1996). Improved thermodynamic parameters and helix initiation factor to predict stability of DNA duplexes. Nucleic Acids Research, 24(22), 4501-4505. Retrieved from http://www.pubmedcentral.nih.gov/articlerender.fcgi?artid=146261&amp;tool=pmcentrez&amp;rendertype=abstract</i></p>
