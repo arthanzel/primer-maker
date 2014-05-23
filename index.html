@@ -29,10 +29,9 @@
         }
         
         var dna = getDNA();
-        var reverseDNA = getDNA().split("").reverse().join("");
+        var reverseDNA = getComplement(getDNA().split("").reverse().join(""));
         var fPrimer = calculatePrimer(dna);
         var rPrimer = calculatePrimer(reverseDNA);
-        rPrimer.sequence = getComplement(rPrimer.sequence);
         out(fPrimer, rPrimer);
     }
 
