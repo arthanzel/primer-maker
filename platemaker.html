@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="plateMaker">
+<head>
+    <meta charset="UTF-8">
+    <title>Plate Maker</title>
+
+    <style>
+        table {
+            border: 0;
+            border-collapse: collapse;
+            margin-bottom: 25px;
+        }
+        td {
+            border: 1px solid #a6a6a6;
+        }
+        td input {
+            background: transparent;
+            border: 0;
+            font-size: 14px;
+            min-width: 100%;
+            outline: 0 !important;
+            width: 100px;
+        }
+        td:nth-child(2n+1) {
+            font-weight: bold;
+            padding: 2px;
+            text-align: right;
+        }
+
+        .fillin { background: rgb(210, 230, 210); }
+        .warning { background: rgb(250, 200, 150); }
+        .info { background: rgb(210, 210, 230); }
+
+        *[hidden] { display: none; } 
+    </style>
+
+    <script type="text/javascript" src="jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="angular.min.js"></script>
+
+    <script type="text/javascript">
+        angular.module("plateMaker", [])
+        .controller("PlateController", function($scope) {
+            $scope.cStockA = 5e6;
+            $scope.cLowA = 1;
+            $scope.cHighA = 500;
+            $scope.cStockB = 100e3;
+            $scope.cLowB = 50;
+            $scope.cHighB = 1000;
+            $scope.nA = 12;
+            $scope.nB = 8;
+            $scope.v = 600;
+            $scope.cultureOD = 0.2;
+            $scope.finalOD = 0.02;
+            $scope.safety = 1.15;
+
+            $scope.recalculate = function() {
+                var safety = $scope.safety;
+
+                // Dilution factor between rows for each drug
+                var kDA = Math.pow($scope.cLowA / $scope.cHighA, 1 / ($scope.nA - 1));
+                var kDB = Math.pow($scope.cLowB / $scope.cHighB, 1 / ($scope.nB - 1));
+
+                // Culture dilution coefficient
+                var kDilution = $scope.finalOD / $scope.cultureOD;
+
+                // Drug dilution coefficient from the intermediate to the final step
+                var kDrug = 1/20;
+
+                var vLastA = 3000 / (1 - kDA);
+                var vLastB = 3000 / (1 - kDB);
+                var vDrugA = dilute($scope.cStockA, $scope.cHighA / kDrug, vLastA);
+                var vDrugB = dilute($scope.cStockB, $scope.cHighB / kDrug, vLastB);
+
+                var vSerialA = vLastA * kDA;
+                var vSerialB = vLastB * kDB;
+
+                // Export variables
+                $scope.vMediaA = (vLastA - vDrugA) / 1000;
+                $scope.vMediaB = (vLastB - vDrugB) / 1000;
+                $scope.vDrugA = vDrugA;
+                $scope.vDrugB = vDrugB;
+                $scope.vSerialA = vSerialA;
+                $scope.vSerialB = vSerialB;
+                $scope.vCulture = $scope.v * kDilution;
+                $scope.vDrug = $scope.v * kDrug;
+                $scope.vMedia = (18/20) * $scope.v - $scope.vCulture;
+
+                $(".procedure").show();
+            };
+            
+            $scope.$watchGroup(["cStockA",
+                "cLowA",
+                "cHighA",
+                "cStockB",
+                "cLowB",
+                "cHighB",
+                "nA",
+                "nB",
+                "v",
+                "cultureOD",
+                "finalOD"], $scope.recalculate);
+        });
+
+        function dilute(c1, c2, v2) {
+            return c2 * v2 / c1;
+        }
+    </script>
+</head>
+<body ng-controller="PlateController">
+    <h1>Let's make a plate!</h1>
+    
+    <table>
+        <tr>
+            <td>Stock [Drug A]</td>
+            <td class="warning"><input type="number" ng-model="cStockA" /></td>
+
+            <td>Lowest [Drug A]</td>
+            <td class="fillin"><input type="number" ng-model="cLowA" /></td>
+
+            <td>Highest [Drug A]</td>
+            <td class="fillin"><input type="number" ng-model="cHighA" /></td>
+
+            <td>Drug A Dimension</td>
+            <td class="fillin"><input type="number" ng-model="nA" /></td>
+        </tr>
+        <tr>
+            <td>Stock [Drug B]</td>
+            <td class="warning"><input type="number" ng-model="cStockB" /></td>
+
+            <td>Lowest [Drug B]</td>
+            <td class="fillin"><input type="number" ng-model="cLowB" /></td>
+
+            <td>Highest [Drug B]</td>
+            <td class="fillin"><input type="number" ng-model="cHighB" /></td>
+
+            <td>Drug B Dimension</td>
+            <td class="fillin"><input type="number" ng-model="nB" /></td>
+        </tr>
+        <tr>
+            <td>Volume (&mu;L)</td>
+            <td class="warning"><input type="number" ng-model="v" /></td>
+
+            <td>Culture OD600</td>
+            <td class="warning"><input type="number" ng-model="cultureOD" /></td>
+
+            <td>Final OD600</td>
+            <td class="warning"><input type="number" ng-model="finalOD" /></td>
+        </tr>
+    </table>
+
+    <button ng-click="recalculate();">Recalculate</button>
+
+    <div class="procedure" hidden>
+        <p>Set up a row of {{ nA }} culture tubes and a row of {{ nB }} culture tubes on a rack. These will represent the gradient of drugs A and B, respectively.</p>
+        <p>Pipette 3 mL of media into each tube, except the last of each row.</p>
+        <p>Pipette {{ vMediaA | number:3 }} mL of media and {{ vDrugA | number:3 }} &mu;L of drug A into the last tube of row A. Pipette {{ vMediaB | number:3 }} mL of media and {{ vDrugB | number:3 }} &mu;L of drug B into last tube of row B.</p>
+        <p>Serial dilution: Transfer {{ vSerialA | number:3 }} &mu;L from the last tube in row A into the previous tube and mix well. Repeat for every other tube, but do not dispense into the first tube.</p>
+        <p>Serial dilution: Transfer {{ vSerialB | number:3 }} &mu;L from the last tube in row B into the previous tube and mix well. Repeat for every other tube, but do not dispense into the first tube.</p>
+        <p>Fill up a boat with the appropriate medium. Pipette {{ vMedia | number:3 }} &mu;L of media and {{ vCulture | number:3 }} &mu;L of culture into each well of the plate.</p>
+        <p>Transfer {{ vDrug | number:3 }} &mu;L from the first tube in row A into each well in the first <b>column</b>. Repeat for each remaining tube and column.</p>
+        <p>Transfer {{ vDrug | number:3 }} &mu;L from the first tube in row B into each well in the first <b>row</b>. Repeat for each remaining tube and row.</p>
+
+
+        <!--<p>Fill a boat with the appropriate medium.</p>
+        <p>Fill a boat with {{ vMediaBoatA / 1000 | number:3 }} mL of media and {{ vDrugBoatA | number:3 }} &mu;L of drug A. Fill another boat with {{ vMediaBoatB / 1000 | number:3 }} mL of media and {{ vDrugBoatB | number:3 }} &mu;L of drug B.</p>
+        <p>Pipette {{ overVIntA | number:3 }} &mu;L of drug A solution into the last <b>column</b> of a plate. Pipette {{ overVIntB | number:3 }} &mu;L of drug B solution into the last <b>row</b> of a second plate. Mix both thoroughly.</p>
+        <p>Pipette {{ vSerialMediaA | number:3 }} &mu;L of media into the remaining wells of the drug A plate. Pipette {{ vSerialMediaB | number:3 }} &mu;L of media into the remaining wells of the drug B plate.</p>
+        <p>Perform serial dilutions for the drug A plate. Take up {{ vSerialA | number:3 }} &mu;L of solution from the last column of the plate and dispense into the previous column, mixing well. Repeat for every column, but do not dispense into the first column.</p>
+        <p>Perform serial dilutions for the drug B plate. Take up {{ vSerialB | number:3 }} &mu;L of solution from the last row of the plate and dispense into the previous row, mixing well. Repeat for every row, but do not dispense into the first row.</p>
+        <p>Pipette {{ vDrugInt | number:3 }} &mu;L from each well in one plate and add it to the other plate.</p>
+        <p>Add {{ vCulture | number:3 }} &mu;L of culture to each well.</p>-->
+    </div>
+</body>
+</html>
