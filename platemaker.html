@@ -49,6 +49,7 @@
             $scope.nA = 12;
             $scope.nB = 8;
             $scope.v = 600;
+            $scope.vTube = 3000;
             $scope.cultureOD = 0.2;
             $scope.finalOD = 0.02;
             $scope.safety = 1.15;
@@ -56,34 +57,44 @@
             $scope.recalculate = function() {
                 var safety = $scope.safety;
 
-                // Dilution factor between rows for each drug
+                // Total wells
+                var nWells = $scope.nA * $scope.nB;
+
+                // Dilution factor between rows for each drug.
                 var kDA = Math.pow($scope.cLowA / $scope.cHighA, 1 / ($scope.nA - 1));
                 var kDB = Math.pow($scope.cLowB / $scope.cHighB, 1 / ($scope.nB - 1));
 
-                // Culture dilution coefficient
-                var kDilution = $scope.finalOD / $scope.cultureOD;
+                // Culture dilution coefficient.
+                var kC = $scope.finalOD / $scope.cultureOD;
 
-                // Drug dilution coefficient from the intermediate to the final step
+                // Drug dilution coefficient from the intermediate to the final step.
                 var kDrug = 1/20;
 
-                var vLastA = 3000 / (1 - kDA);
-                var vLastB = 3000 / (1 - kDB);
+                // Total volume of the last tubes for each drug, including the volume that needs to be taken out for serial dilutions and still have a working volume left.
+                var vLastA = $scope.vTube / (1 - kDA);
+                var vLastB = $scope.vTube / (1 - kDB);
+
+                // Volume of drug stock to add to the last tube of each series.
                 var vDrugA = dilute($scope.cStockA, $scope.cHighA / kDrug, vLastA);
                 var vDrugB = dilute($scope.cStockB, $scope.cHighB / kDrug, vLastB);
 
+                // Volume to carry over in the serial dilutions.
                 var vSerialA = vLastA * kDA;
                 var vSerialB = vLastB * kDB;
 
                 // Export variables
-                $scope.vMediaA = (vLastA - vDrugA) / 1000;
-                $scope.vMediaB = (vLastB - vDrugB) / 1000;
+                $scope.vMediaA = (vLastA - vDrugA);
+                $scope.vMediaB = (vLastB - vDrugB);
                 $scope.vDrugA = vDrugA;
                 $scope.vDrugB = vDrugB;
                 $scope.vSerialA = vSerialA;
                 $scope.vSerialB = vSerialB;
-                $scope.vCulture = $scope.v * kDilution;
-                $scope.vDrug = $scope.v * kDrug;
-                $scope.vMedia = (18/20) * $scope.v - $scope.vCulture;
+                $scope.vCulture = $scope.v * kC; // In each well
+                $scope.vDrug = $scope.v * kDrug; // In each well
+                $scope.vMedia = $scope.v - $scope.vCulture - 2 * $scope.vDrug; // In each well
+                $scope.vCultureBoat = $scope.vCulture * nWells * safety // In the boat
+                $scope.vMediaBoat = $scope.vMedia * nWells * safety; // In the boat
+                $scope.vTransfer = $scope.v - 2 * $scope.vDrug;
 
                 $(".procedure").show();
             };
@@ -99,6 +110,16 @@
                 "v",
                 "cultureOD",
                 "finalOD"], $scope.recalculate);
+        })
+        .filter("vol", function() {
+            return function volFilter(input) {
+                var unit = "uL";
+                if (input > 1000) {
+                    input /= 1000;
+                    unit = "mL";
+                }
+                return "" + input.toFixed(3) + " " + unit;
+            };
         });
 
         function dilute(c1, c2, v2) {
@@ -151,24 +172,16 @@
     <button ng-click="recalculate();">Recalculate</button>
 
     <div class="procedure" hidden>
+        <p>You need lots of the appropriate medium, {{ vDrugA | vol }} of stock drug A, and {{ vDrugB | vol }} of stock drug B.</p>
         <p>Set up a row of {{ nA }} culture tubes and a row of {{ nB }} culture tubes on a rack. These will represent the gradient of drugs A and B, respectively.</p>
-        <p>Pipette 3 mL of media into each tube, except the last of each row.</p>
-        <p>Pipette {{ vMediaA | number:3 }} mL of media and {{ vDrugA | number:3 }} &mu;L of drug A into the last tube of row A. Pipette {{ vMediaB | number:3 }} mL of media and {{ vDrugB | number:3 }} &mu;L of drug B into last tube of row B.</p>
-        <p>Serial dilution: Transfer {{ vSerialA | number:3 }} &mu;L from the last tube in row A into the previous tube and mix well. Repeat for every other tube, but do not dispense into the first tube.</p>
-        <p>Serial dilution: Transfer {{ vSerialB | number:3 }} &mu;L from the last tube in row B into the previous tube and mix well. Repeat for every other tube, but do not dispense into the first tube.</p>
-        <p>Fill up a boat with the appropriate medium. Pipette {{ vMedia | number:3 }} &mu;L of media and {{ vCulture | number:3 }} &mu;L of culture into each well of the plate.</p>
-        <p>Transfer {{ vDrug | number:3 }} &mu;L from the first tube in row A into each well in the first <b>column</b>. Repeat for each remaining tube and column.</p>
-        <p>Transfer {{ vDrug | number:3 }} &mu;L from the first tube in row B into each well in the first <b>row</b>. Repeat for each remaining tube and row.</p>
-
-
-        <!--<p>Fill a boat with the appropriate medium.</p>
-        <p>Fill a boat with {{ vMediaBoatA / 1000 | number:3 }} mL of media and {{ vDrugBoatA | number:3 }} &mu;L of drug A. Fill another boat with {{ vMediaBoatB / 1000 | number:3 }} mL of media and {{ vDrugBoatB | number:3 }} &mu;L of drug B.</p>
-        <p>Pipette {{ overVIntA | number:3 }} &mu;L of drug A solution into the last <b>column</b> of a plate. Pipette {{ overVIntB | number:3 }} &mu;L of drug B solution into the last <b>row</b> of a second plate. Mix both thoroughly.</p>
-        <p>Pipette {{ vSerialMediaA | number:3 }} &mu;L of media into the remaining wells of the drug A plate. Pipette {{ vSerialMediaB | number:3 }} &mu;L of media into the remaining wells of the drug B plate.</p>
-        <p>Perform serial dilutions for the drug A plate. Take up {{ vSerialA | number:3 }} &mu;L of solution from the last column of the plate and dispense into the previous column, mixing well. Repeat for every column, but do not dispense into the first column.</p>
-        <p>Perform serial dilutions for the drug B plate. Take up {{ vSerialB | number:3 }} &mu;L of solution from the last row of the plate and dispense into the previous row, mixing well. Repeat for every row, but do not dispense into the first row.</p>
-        <p>Pipette {{ vDrugInt | number:3 }} &mu;L from each well in one plate and add it to the other plate.</p>
-        <p>Add {{ vCulture | number:3 }} &mu;L of culture to each well.</p>-->
+        <p>Pipette 3 mL of medium into each tube, except the last of each row.</p>
+        <p>Pipette {{ vMediaA | vol }} of media and {{ vDrugA | vol }} of drug A into the last tube of row A. Pipette {{ vMediaB | vol }} of medium and {{ vDrugB | vol }} of drug B into last tube of row B.</p>
+        <p>Serial dilution: Transfer {{ vSerialA | vol }} from the last tube in row A into the previous tube and mix well. Repeat for every other tube, but do not dispense into the first tube.</p>
+        <p>Serial dilution: Transfer {{ vSerialB | vol }} from the last tube in row B into the previous tube and mix well. Repeat for every other tube, but do not dispense into the first tube.</p>
+        <!--<p>Fill up a boat with the appropriate medium. Pipette {{ vMedia | number:3 }} &mu;L of medium and {{ vCulture | number:3 }} &mu;L of culture into each well of the plate.</p>-->
+        <p>For each plate, fill up a boat with {{ vMediaBoat | vol }} of the appropriate medium and {{ vCultureBoat | vol }} of culture. Transfer {{ vTransfer | vol }} of the mixture into each well using a multi-channel pipette.</p>
+        <p>Transfer {{ vDrug | vol }} from the first tube in row A into each well in the first <b>column</b>. Repeat for each remaining tube and column.</p>
+        <p>Transfer {{ vDrug | vol }} from the first tube in row B into each well in the first <b>row</b>. Repeat for each remaining tube and row.</p>
     </div>
 </body>
 </html>
